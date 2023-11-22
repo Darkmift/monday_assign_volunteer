@@ -17,11 +17,15 @@ interface IColumnValue {
     id: string;
     value: string; // Keeping it as string since the value is JSON encoded
 }
-
+interface IGroup {
+    id: string;
+    title: string;
+}
 interface IItem {
     id: string;
     name: string;
     column_values: IColumnValue[];
+    group: IGroup;
 }
 
 interface IVolunteer extends Omit<IItem, 'column_values'> {
@@ -41,6 +45,10 @@ const GQL_QUERY = {
             items {
               id
               name
+              group {
+                id
+                title
+              }
               column_values {
                 id
                 value
@@ -62,6 +70,10 @@ const GQL_QUERY = {
         items(ids: [${helpResquesterId}]) {
           id
           name
+          group {
+            id
+            title
+          }
           column_values {
             id
             value
@@ -124,13 +136,14 @@ const fetchVolunteerList = async () => {
     }, {});
 
     const volunteerList = items.map((item: IItem) => {
-        const { id, name } = item;
+        const { id, name, group, column_values } = item;
         const volunteerObj: IVolunteer = {
-            id: id,
-            name: name,
+            id,
+            name,
+            group,
+            column_values,
         };
-        volunteerObj.id = item.id;
-        volunteerObj.name = item.name;
+
         item.column_values.forEach(({ id, value }: IColumnValue) => {
             volunteerObj[columnMap[id]] = { id, data: tryParse(value) };
         });
