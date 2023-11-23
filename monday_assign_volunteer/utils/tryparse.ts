@@ -1,4 +1,7 @@
-const tryParse = (input: string): object | string => {
+const tryParse = (input: string | null): object | string | null => {
+    if (!input) {
+        return input;
+    }
     try {
         // Attempt to parse the input as JSON
         return JSON.parse(input);

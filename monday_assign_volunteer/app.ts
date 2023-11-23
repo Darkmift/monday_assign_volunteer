@@ -1,11 +1,13 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import 'dotenv/config';
-import axios from 'axios';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
+import { IItem, IVolunteer } from './types';
 import GQL_QUERY from './queries';
+import fetchGQLData from './utils/fetchMondayGQL';
 import logger from './utils/logger-winston';
-import { IColumnValue, IItem, IVolunteer } from './types';
-import tryParse from './utils/tryparse';
+import columnArrayToMap from './utils/mapColumnsArray';
+import processColumnValues from './utils/processColumnValues';
+import assignVolunteer from './utils/assignVolunteer';
 
 /**
  *
@@ -17,29 +19,6 @@ import tryParse from './utils/tryparse';
  *
  */
 
-const fetchGQLData = async (query: string) => {
-    try {
-        const response = await axios.post(
-            'https://api.monday.com/v2',
-            {
-                query,
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `${process.env.MONDAY_API_KEY}`,
-                    'API-Version': '2023-10',
-                },
-            },
-        );
-
-        return response.data;
-    } catch (error) {
-        logger.error(error);
-        return null;
-    }
-};
-
 const fetchVolunteerList = async () => {
     const {
         data: { boards },
@@ -48,24 +27,19 @@ const fetchVolunteerList = async () => {
         columns,
         items_page: { items },
     } = boards[0];
+    const columnMap = columnArrayToMap(columns);
 
-    const columnMap = columns.reduce((acc: { [key: string]: unknown }, { id, title }: { [key: string]: string }) => {
-        acc[id] = title;
-        return acc;
-    }, {});
-
-    const volunteerList = items.map((item: IItem) => {
+    const volunteerList: IVolunteer[] = items.map((item: IItem): IVolunteer => {
         const { id, name, group, column_values } = item;
         const volunteerObj: IVolunteer = {
             id,
             name,
             group,
-            column_values,
+            column_values: [],
+            languages: {},
+            capacity: { id: 'numbers' },
+            ...processColumnValues(column_values, columnMap),
         };
-
-        item.column_values.forEach(({ id, value }: IColumnValue) => {
-            volunteerObj[columnMap[id]] = { id, data: tryParse(value) };
-        });
         return volunteerObj;
     });
 
@@ -80,19 +54,13 @@ const fetchHelpRequesterData = async (helpResquesterId: string, helpRequesterBoa
         } = await fetchGQLData(query);
 
         const { columns } = boards[0];
-        const [helpRequesterData] = items;
+        const [rawHelpRequesterData] = items;
+        const helpRequestColumnMap = columnArrayToMap(columns);
 
-        const helpRequestColumnMap = columns.reduce(
-            (acc: { [key: string]: unknown }, { id, title }: { [key: string]: string }) => {
-                acc[id] = title;
-                return acc;
-            },
-            {},
-        );
-
-        helpRequesterData.column_values.forEach(({ id, value }: IColumnValue) => {
-            helpRequesterData[helpRequestColumnMap[id]] = { id, data: tryParse(value) };
-        });
+        const helpRequesterData = {
+            ...rawHelpRequesterData,
+            ...processColumnValues(rawHelpRequesterData.column_values, helpRequestColumnMap),
+        };
 
         return { helpRequesterData, helpRequestColumnMap };
     } catch (error) {
@@ -101,10 +69,10 @@ const fetchHelpRequesterData = async (helpResquesterId: string, helpRequesterBoa
     }
 };
 
+// You need to define the languageMatch function based on your data structure.
+
 export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-        console.log('🚀 ~ file: app.ts:15 ~ lambdaHandler ~ event:', typeof event.body);
-
         const eventBody = JSON.parse(event.body as string).event;
         const helpRequesterId = eventBody.pulseId;
         const helpRequesterBoardId = eventBody.boardId;
@@ -120,11 +88,14 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
             helpRequesterBoardId,
         );
 
+        const volunteerMatch = assignVolunteer(volunteerList, helpRequesterData);
         logger.info({
             columnMap,
-            volunteerListSample: volunteerList[0],
+            volunteerList,
+            // volunteerListSample: volunteerList[0],
             helpRequesterData,
             helpRequestColumnMap,
+            volunteerMatch,
         });
 
         return output;
