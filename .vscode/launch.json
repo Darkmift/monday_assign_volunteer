@@ -9,7 +9,21 @@
       "name": "Test Lambda",
       "request": "launch",
       "type": "node-terminal",
-      "cwd": "${workspaceFolder}/hello-world"
+      "cwd": "${workspaceFolder}/monday_assign_volunteer"
+    },
+    {
+      "command": "sam build",
+      "name": "Sam:build",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "command": "sam deploy --guided",
+      "name": "Sam:deploy",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }
