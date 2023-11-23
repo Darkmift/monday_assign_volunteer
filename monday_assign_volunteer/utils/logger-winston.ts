@@ -67,10 +67,10 @@ if (isNotProd) {
         winstonLoggerInstance.debug('debug', prettyLog('debug', ...args));
     };
     logger.warn = (...args) => {
-        winstonLoggerInstance.warn('info', prettyLog('info', ...args));
+        winstonLoggerInstance.warn('warn', prettyLog('warn', ...args));
     };
     logger.error = (...args) => {
-        winstonLoggerInstance.error('errro', prettyLog('errro', ...args));
+        winstonLoggerInstance.error('errror', prettyLog('errror', ...args));
     };
 }
 
