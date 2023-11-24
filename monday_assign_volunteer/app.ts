@@ -8,6 +8,7 @@ import logger from './utils/logger-winston';
 import columnArrayToMap from './utils/mapColumnsArray';
 import processColumnValues from './utils/processColumnValues';
 import assignVolunteer from './utils/assignVolunteer';
+import createBoardRelationValue from './utils/createBoardRelationValue';
 
 /**
  *
@@ -18,6 +19,8 @@ import assignVolunteer from './utils/assignVolunteer';
  * @returns {Object} object - API Gateway Lambda Proxy Output Format
  *
  */
+
+export const VOLUNTEER_BOARD_ID = 1316808337;
 
 const fetchVolunteerList = async () => {
     const {
@@ -35,7 +38,7 @@ const fetchVolunteerList = async () => {
             id,
             name,
             group,
-            column_values: [],
+            column_values,
             languages: {},
             capacity: { id: 'numbers' },
             ...processColumnValues(column_values, columnMap),
@@ -46,7 +49,7 @@ const fetchVolunteerList = async () => {
     return { volunteerList, columnMap };
 };
 
-const fetchHelpRequesterData = async (helpResquesterId: string, helpRequesterBoardId: string) => {
+const fetchHelpRequesterData = async (helpResquesterId: number, helpRequesterBoardId: number) => {
     try {
         const query = GQL_QUERY.getHelpRequesterData(helpResquesterId, helpRequesterBoardId);
         const {
@@ -98,10 +101,33 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
             volunteerMatch,
         });
 
+        if (!volunteerMatch) {
+            output.statusCode = 404;
+            output.body = JSON.stringify({
+                message: 'no volunteer match',
+            });
+            return output;
+        }
+
+        const updateColumnValues = {
+            volunteerId: parseInt(volunteerMatch.id),
+            boardId: VOLUNTEER_BOARD_ID,
+            columnId: 'board_relation',
+            value: createBoardRelationValue(volunteerMatch, helpRequesterData),
+        };
+        const mutationQuery = GQL_QUERY.updateColumnValueForItemInBoard(updateColumnValues);
+
+        logger.info({
+            mutationQuery,
+        });
+
+        const mutationResult = await fetchGQLData(mutationQuery);
+        logger.info('🚀 ~ file: app.ts:123 ~ lambdaHandler ~ mutationResult:', mutationResult);
+
         return output;
     } catch (err) {
         const error = err as Error;
-        logger.error(JSON.stringify(error, null, 2));
+        logger.error('main.ts error', error);
         return {
             statusCode: 500,
             body: JSON.stringify({
