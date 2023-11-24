@@ -25,6 +25,8 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
             statusCode: 200,
             body: eventBody,
         };
+        logger.info('eventBody', { helpRequesterId, helpRequesterBoardId });
+        logger.error('', new Error('error'));
 
         return output;
     } catch (err) {
