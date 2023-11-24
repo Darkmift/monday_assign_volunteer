@@ -1,3 +1,11 @@
+export type LinkedPulseId = {
+    linkedPulseId: number;
+};
+
+export type LinkedPulseIdsValue = {
+    linkedPulseIds: LinkedPulseId[];
+};
+
 export interface IColumnValue {
     id: string;
     value: string | null; // Keeping it as string since the value is JSON encoded
