@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
 import { IItem, IVolunteer } from './types';
-import GQL_QUERY from './queries';
+import GQL_QUERY from './utils/queries';
 import fetchGQLData from './utils/fetchMondayGQL';
 import logger from './utils/logger-winston';
 import columnArrayToMap from './utils/mapColumnsArray';
