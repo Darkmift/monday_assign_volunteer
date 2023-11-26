@@ -14,3 +14,16 @@ this is the column in the requesters board
  where the assign volunteer id is listed as board_relation
  */
 export const COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER = 'connect_boards5';
+/**
+ * the id of the volunteers board
+ */
+export const VOLUNTEER_BOARD_ID = 1316808337;
+/**
+ * column prefix indicating its a can speak language checkbox
+ */
+export const CAN_SPEAK_LANG_PREFIX = 'דובר ';
+
+/**
+ * column id for capacity
+ */
+export const COLUMN_CAPACITY = 'numbers';
