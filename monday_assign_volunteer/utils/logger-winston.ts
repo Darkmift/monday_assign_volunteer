@@ -45,9 +45,9 @@ const winstonErrorLoggerInstance: Logger = winston.createLogger({
 
 const logger = {
     info: (message: string, meta?: unknown) => winstonLoggerInstance.info(message, meta),
-    log: (args: LoggerArgs) => winstonLoggerInstance.info(args),
-    debug: (args: LoggerArgs) => winstonLoggerInstance.debug(args),
-    warn: (args: LoggerArgs) => winstonLoggerInstance.warn(args),
+    log: (message: string, meta?: unknown) => winstonLoggerInstance.info(message, meta),
+    debug: (message: string, meta?: unknown) => winstonLoggerInstance.debug(message, meta),
+    warn: (message: string, meta?: unknown) => winstonLoggerInstance.warn(message, meta),
     error: (message: string | Error, meta?: Error | Record<string, unknown>) => {
         if (message instanceof Error) {
             winstonErrorLoggerInstance.error(message.message, { ...meta, stack: message.stack });
