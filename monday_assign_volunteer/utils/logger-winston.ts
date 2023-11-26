@@ -1,9 +1,6 @@
 import winston, { transports, format, Logger } from 'winston';
 const { combine, timestamp, printf } = format;
 
-type Meta = { meta?: Record<string, unknown> };
-type LoggerArgs = [message: string, meta?: Meta];
-
 const myFormat = printf((info) => {
     const { timestamp, level, message } = info;
     return `${timestamp} [${level}]: ${message}\n${JSON.stringify(info, null, 2)}`;
@@ -14,6 +11,14 @@ const myErrorFormat = printf((info) => {
 });
 
 const isNotProd = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+const consoleTransport = [
+    // Console transport
+    new winston.transports.Console({
+        level: 'debug', // Log only if info.level less than or equal to this level
+        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    }),
+];
 
 // Logger instance for general logs
 const winstonLoggerInstance: Logger = winston.createLogger({
@@ -26,7 +31,7 @@ const winstonLoggerInstance: Logger = winston.createLogger({
                   format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), myFormat),
               }),
           ]
-        : [],
+        : consoleTransport,
 });
 
 // Separate logger instance for error logs
@@ -40,7 +45,7 @@ const winstonErrorLoggerInstance: Logger = winston.createLogger({
                   format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), myErrorFormat),
               }),
           ]
-        : [],
+        : consoleTransport,
 });
 
 const logger = {
