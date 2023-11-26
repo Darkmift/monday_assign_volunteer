@@ -1,78 +1,61 @@
-import winston, { transport } from 'winston';
+import winston, { transports, format, Logger } from 'winston';
+const { combine, timestamp, printf } = format;
 
-const transportOptions: transport[] = [
-    // Console transport
-    new winston.transports.Console({
-        level: 'debug', // Log only if info.level less than or equal to this level
-        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-    }),
-];
+type Meta = { meta?: Record<string, unknown> };
+type LoggerArgs = [message: string, meta?: Meta];
+
+const myFormat = printf((info) => {
+    const { timestamp, level, message } = info;
+    return `${timestamp} [${level}]: ${message}\n${JSON.stringify(info, null, 2)}`;
+});
+const myErrorFormat = printf((info) => {
+    const { timestamp, level, message, stack } = info;
+    return `${timestamp} [${level}]: ${message} ${stack}\n${JSON.stringify(info, null, 2)}`;
+});
 
 const isNotProd = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-if (isNotProd) {
-    transportOptions.push(
-        new winston.transports.File({
-            filename: 'logs/app.log',
-            level: 'info',
-        }),
-    );
-}
-
-// Create a Winston logger instance
-const winstonLoggerInstance = winston.createLogger({
-    // Define the log levels
+// Logger instance for general logs
+const winstonLoggerInstance: Logger = winston.createLogger({
     levels: winston.config.npm.levels,
+    transports: isNotProd
+        ? [
+              new transports.File({
+                  filename: 'logs/app.log',
+                  level: 'info',
+                  format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), myFormat),
+              }),
+          ]
+        : [],
+});
 
-    // Define the format of your logs
-    format: winston.format.combine(
-        winston.format.timestamp({
-            format: 'YYYY-MM-DD HH:mm:ss',
-        }),
-        winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`),
-    ),
-
-    // Define transports
-    transports: transportOptions,
+// Separate logger instance for error logs
+const winstonErrorLoggerInstance: Logger = winston.createLogger({
+    levels: winston.config.npm.levels,
+    transports: isNotProd
+        ? [
+              new transports.File({
+                  filename: 'logs/app.error.log',
+                  level: 'error',
+                  format: combine(timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), myErrorFormat),
+              }),
+          ]
+        : [],
 });
 
 const logger = {
-    info: (...args: unknown[]): void => {
-        console.info('info', ...args);
-    },
-    log: (...args: unknown[]): void => {
-        console.log('log', ...args);
-    },
-    debug: (...args: unknown[]): void => {
-        console.debug('debug', ...args);
-    },
-    warn: (...args: unknown[]): void => {
-        console.warn('warn', ...args);
-    },
-    error: (...args: unknown[]): void => {
-        console.debug('error', ...args);
+    info: (message: string, meta?: unknown) => winstonLoggerInstance.info(message, meta),
+    log: (message: string, meta?: unknown) => winstonLoggerInstance.info(message, meta),
+    debug: (message: string, meta?: unknown) => winstonLoggerInstance.debug(message, meta),
+    warn: (message: string, meta?: unknown) => winstonLoggerInstance.warn(message, meta),
+    error: (message: string | Error, meta?: Error | Record<string, unknown>) => {
+        if (message instanceof Error) {
+            winstonErrorLoggerInstance.error(message.message, { ...meta, stack: message.stack });
+        } else {
+            winstonErrorLoggerInstance.error(message, meta);
+        }
     },
 };
-
-const prettyLog = (key: string, ...data: unknown[]) => JSON.stringify({ [key]: data }, null, 2);
-
-if (isNotProd) {
-    logger.info = (...args) => {
-        winstonLoggerInstance.info(prettyLog('info', ...args));
-    };
-    logger.log = (...args) => {
-        winstonLoggerInstance.info(prettyLog('log', ...args));
-    };
-    logger.debug = (...args) => {
-        winstonLoggerInstance.debug('debug', prettyLog('debug', ...args));
-    };
-    logger.warn = (...args) => {
-        winstonLoggerInstance.warn('warn', prettyLog('warn', ...args));
-    };
-    logger.error = (...args) => {
-        winstonLoggerInstance.error('error', prettyLog('error', ...args));
-    };
-}
 
 // Export the logger
 export default logger;

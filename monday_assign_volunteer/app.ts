@@ -1,14 +1,18 @@
 import 'dotenv/config';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-
-import { IItem, IVolunteer } from './types';
-import GQL_QUERY from './utils/queries';
-import fetchGQLData from './utils/fetchMondayGQL';
 import logger from './utils/logger-winston';
-import columnArrayToMap from './utils/mapColumnsArray';
-import processColumnValues from './utils/processColumnValues';
-import assignVolunteer from './utils/assignVolunteer';
-import createBoardRelationValue from './utils/createBoardRelationValue';
+import {
+    GET_ALL_ACTIVE_VOLUNTEERS,
+    GET_HELP_REQUESTER_DATA,
+    UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD,
+} from './utils/queries';
+import makeGQLRequest from './utils/graphQlRequestClient';
+import { IHelpRequesterApiResponse, IColumnValue, IVolunteersAPIResponse, LinkedPulses } from './types';
+import { COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER } from './config/consts';
+import tryParse from './utils/tryparse';
+import mapRequesterLanguages from './utils/mapRequesterLanguages';
+import matchVolunteer from './utils/matchVolunteer';
+import mapLanguagesIds from './utils/mapLanguagesIds';
 
 /**
  *
@@ -22,112 +26,105 @@ import createBoardRelationValue from './utils/createBoardRelationValue';
 
 export const VOLUNTEER_BOARD_ID = 1316808337;
 
-const fetchVolunteerList = async () => {
-    const {
-        data: { boards },
-    } = await fetchGQLData(GQL_QUERY.getVolunteerBoard);
-    const {
-        columns,
-        items_page: { items },
-    } = boards[0];
-    const columnMap = columnArrayToMap(columns);
-
-    const volunteerList: IVolunteer[] = items.map((item: IItem): IVolunteer => {
-        const { id, name, group, column_values } = item;
-        const volunteerObj: IVolunteer = {
-            id,
-            name,
-            group,
-            column_values,
-            languages: {},
-            capacity: { id: 'numbers' },
-            ...processColumnValues(column_values, columnMap),
-        };
-        return volunteerObj;
-    });
-
-    return { volunteerList, columnMap };
-};
-
-const fetchHelpRequesterData = async (helpResquesterId: number, helpRequesterBoardId: number) => {
-    try {
-        const query = GQL_QUERY.getHelpRequesterData(helpResquesterId, helpRequesterBoardId);
-        const {
-            data: { boards, items },
-        } = await fetchGQLData(query);
-
-        const { columns } = boards[0];
-        const [rawHelpRequesterData] = items;
-        const helpRequestColumnMap = columnArrayToMap(columns);
-
-        const helpRequesterData = {
-            ...rawHelpRequesterData,
-            ...processColumnValues(rawHelpRequesterData.column_values, helpRequestColumnMap),
-        };
-
-        return { helpRequesterData, helpRequestColumnMap };
-    } catch (error) {
-        logger.log('🚀 ~ file: app.ts:167 ~ fetchHelpRequesterData ~ error:', error);
-        return { helpRequesterData: {}, helpRequestColumnMap: {} };
-    }
-};
-
 // You need to define the languageMatch function based on your data structure.
 
 export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const eventBody = JSON.parse(event.body as string).event;
-        const helpRequesterId = eventBody.pulseId;
-        const helpRequesterBoardId = eventBody.boardId;
+        const helpRequesterId = eventBody.pulseId as number;
+        const helpRequesterBoardId = eventBody.boardId as number;
         const output: APIGatewayProxyResult = {
             statusCode: 200,
-            body: eventBody,
+            body: JSON.stringify({ success: true, reason: 'init', meta: eventBody }),
         };
 
-        const { columnMap, volunteerList } = await fetchVolunteerList();
-
-        const { helpRequesterData, helpRequestColumnMap } = await fetchHelpRequesterData(
+        /**
+         * 1. We get the help requester information
+         * if he is already assigned we return
+         */
+        const { items } = (await makeGQLRequest(GET_HELP_REQUESTER_DATA, {
             helpRequesterId,
-            helpRequesterBoardId,
+        })) as IHelpRequesterApiResponse;
+
+        logger.info('🚀 ~ file: app.ts:44 ~ lambdaHandler ~ items:', items[0]);
+        const helpRequester = items[0];
+
+        const assignedVolunteerData = helpRequester.column_values.find(
+            (c: IColumnValue) => c.id === COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER,
         );
 
-        const volunteerMatch = assignVolunteer(volunteerList, helpRequesterData);
-        logger.info({
-            columnMap,
-            volunteerList,
-            // volunteerListSample: volunteerList[0],
-            helpRequesterData,
-            helpRequestColumnMap,
-            volunteerMatch,
-        });
-
-        if (!volunteerMatch) {
-            output.statusCode = 404;
-            output.body = JSON.stringify({
-                message: 'no volunteer match',
-            });
+        const linkedVolunteers = tryParse(assignedVolunteerData?.value) as LinkedPulses;
+        if (linkedVolunteers?.linkedPulseIds?.length > 0) {
+            const response = { success: false, reason: 'Already assigned', meta: { helpRequester, linkedVolunteers } };
+            logger.info('🚀 ~ Already assigned:', response);
+            output.body = JSON.stringify(response);
             return output;
         }
 
-        const updateColumnValues = {
-            volunteerId: parseInt(volunteerMatch.id),
+        /**
+         * 2. We get the volunteers information
+         */
+        const activeVolunteerList = (await makeGQLRequest(GET_ALL_ACTIVE_VOLUNTEERS, {
             boardId: VOLUNTEER_BOARD_ID,
-            columnId: 'board_relation',
-            value: createBoardRelationValue(volunteerMatch, helpRequesterData),
-        };
-        const mutationQuery = GQL_QUERY.updateColumnValueForItemInBoard(updateColumnValues);
+        })) as IVolunteersAPIResponse;
+        logger.log('🚀 ~ file: app.ts:71 ~ lambdaHandler ~ activeVolunteerList:', activeVolunteerList);
 
-        logger.info({
-            mutationQuery,
+        /**
+         * 3. Get the available volunteers
+         */
+
+        const availableVolunteers = activeVolunteerList?.boards[0]?.groups[0]?.items_page.items;
+        logger.log('🚀 ~ file: app.ts:80 ~ lambdaHandler ~ availableVolunteers:', { availableVolunteers });
+
+        /**
+         * if there are no available volunteers we return
+         * TODO add a retry mechanism
+         */
+        if (!availableVolunteers?.length) {
+            const response = { success: false, reason: 'No available volunteers', meta: availableVolunteers };
+            logger.info('🚀 ~ No available Volunteers:', response);
+            output.body = JSON.stringify(response);
+            return output;
+        }
+
+        /**
+         * 4. Map out the langauge columns on the help requester board & volunteers board
+         */
+        const langaugeMap = mapLanguagesIds(helpRequester.board.columns, activeVolunteerList.boards[0].columns);
+
+        /**
+         * 5. We assign the volunteer to the help requester
+         */
+        const languagesSpokenMap = mapRequesterLanguages(helpRequester, langaugeMap);
+
+        logger.info('🚀 ~ file: app.ts:96 ~ lambdaHandler ~ languagesSpokenMap:', languagesSpokenMap);
+
+        const matchingVolunteer = matchVolunteer(availableVolunteers, languagesSpokenMap);
+
+        logger.info('🚀 ~ file: app.ts:100 ~ lambdaHandler ~ matchingVolunteer:', { matchingVolunteer, helpRequester });
+
+        if (!matchingVolunteer) {
+            const response = { success: false, reason: 'No matching volunteer found', meta: matchingVolunteer };
+            logger.info('🚀 ~ No matching volunteer found:', response);
+            output.body = JSON.stringify(response);
+            return output;
+        }
+
+        const response = await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, {
+            helpRequesterId: helpRequesterId,
+            boardId: helpRequesterBoardId,
+            columnId: COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER,
+            value: JSON.stringify({
+                linkedPulseIds: [{ linkedPulseId: parseInt(matchingVolunteer.id) }],
+            }),
         });
 
-        const mutationResult = await fetchGQLData(mutationQuery);
-        logger.info('🚀 ~ file: app.ts:123 ~ lambdaHandler ~ mutationResult:', mutationResult);
+        logger.info('GraphQL response:', response);
 
         return output;
     } catch (err) {
         const error = err as Error;
-        logger.error('main.ts error', error);
+        logger.error(error);
         return {
             statusCode: 500,
             body: JSON.stringify({
