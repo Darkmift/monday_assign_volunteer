@@ -30,12 +30,23 @@ export const VOLUNTEER_BOARD_ID = 1316808337;
 
 export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-        const eventBody = JSON.parse(event.body as string).event;
+        logger.info('🚀 ~ file: app.ts:32 ~ lambdaHandler ~ event:', event);
+        const body = tryParse(event.body as string) as {
+            event: { pulseId: number; boardId: number };
+            challenge: string;
+        };
+        const eventBody = body.event;
         const helpRequesterId = eventBody.pulseId as number;
         const helpRequesterBoardId = eventBody.boardId as number;
+        const responseBody = {
+            success: true,
+            reason: 'init',
+            meta: eventBody as Record<string, unknown> | null,
+            challenge: body.challenge || 'no challenge in event body from monday',
+        };
         const output: APIGatewayProxyResult = {
             statusCode: 200,
-            body: JSON.stringify({ success: true, reason: 'init', meta: eventBody }),
+            body: JSON.stringify(responseBody),
         };
 
         /**
@@ -55,9 +66,11 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
 
         const linkedVolunteers = tryParse(assignedVolunteerData?.value) as LinkedPulses;
         if (linkedVolunteers?.linkedPulseIds?.length > 0) {
-            const response = { success: false, reason: 'Already assigned', meta: { helpRequester, linkedVolunteers } };
-            logger.info('🚀 ~ Already assigned:', response);
-            output.body = JSON.stringify(response);
+            responseBody.success = false;
+            responseBody.reason = 'Already assigned';
+            responseBody.meta = { helpRequester, linkedVolunteers };
+            logger.info('🚀 ~ Already assigned:', responseBody);
+            output.body = JSON.stringify(responseBody);
             return output;
         }
 
@@ -81,9 +94,11 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
          * TODO add a retry mechanism
          */
         if (!availableVolunteers?.length) {
-            const response = { success: false, reason: 'No available volunteers', meta: availableVolunteers };
-            logger.info('🚀 ~ No available Volunteers:', response);
-            output.body = JSON.stringify(response);
+            responseBody.success = false;
+            responseBody.reason = 'No available volunteers';
+            responseBody.meta = { availableVolunteers };
+            logger.info('🚀 ~ No available Volunteers:', responseBody);
+            output.body = JSON.stringify(responseBody);
             return output;
         }
 
@@ -104,9 +119,11 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
         logger.info('🚀 ~ file: app.ts:100 ~ lambdaHandler ~ matchingVolunteer:', { matchingVolunteer, helpRequester });
 
         if (!matchingVolunteer) {
-            const response = { success: false, reason: 'No matching volunteer found', meta: matchingVolunteer };
-            logger.info('🚀 ~ No matching volunteer found:', response);
-            output.body = JSON.stringify(response);
+            responseBody.success = false;
+            responseBody.reason = 'No matching volunteer found';
+            responseBody.meta = matchingVolunteer;
+            logger.info('🚀 ~ No matching volunteer found:', responseBody);
+            output.body = JSON.stringify(responseBody);
             return output;
         }
 

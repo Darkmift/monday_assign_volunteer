@@ -1,6 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { lambdaHandler } from '../../app';
 import { expect, describe, it } from '@jest/globals';
+import tryParse from '../../utils/tryparse';
+import logger from '../../utils/logger-winston';
 
 describe('Unit test for app handler', function () {
     it('verifies successful response', async () => {
@@ -54,12 +56,11 @@ describe('Unit test for app handler', function () {
             stageVariables: {},
         };
         const result: APIGatewayProxyResult = await lambdaHandler(event);
+        console.log('🚀 ~ file: app.test.ts:57 ~ it ~ result:', result);
 
         expect(result.statusCode).toEqual(200);
-        // expect(result.body).toEqual(
-        //     JSON.stringify({
-        //         message: 'hello world',
-        //     }),
-        // );
+        const body = tryParse(result.body as string) as { challenge: string };
+        logger.info('🚀 ~ file: app.test.ts:62 ~ it ~ body:', body);
+        expect(body.challenge).toBeTruthy();
     });
 });
