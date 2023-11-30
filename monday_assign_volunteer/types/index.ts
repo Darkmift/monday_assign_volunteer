@@ -135,3 +135,10 @@ export interface IGroupedVolunteers {
         }[];
     }[];
 }
+
+export interface SetRequesterMultipleValuesVariables {
+    itemId: number;
+    boardId: number;
+    groupId: string;
+    columnValues: string; // JSON string
+}

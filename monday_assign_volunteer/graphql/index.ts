@@ -8,6 +8,7 @@ import {
     IHelpRequesterApiResponse,
     IVolunteersAPIResponse,
     MoveHelpRequesterBackToRawListGroupVariables,
+    SetRequesterMultipleValuesVariables,
     UpdateColumnValueForItemInBoardVariables,
 } from '../types';
 import makeGQLRequest from '../utils/graphQlRequestClient';
@@ -18,6 +19,7 @@ import {
     GET_VOLUNTEERS_GROUPED_BY_LANGUAGE,
     GET_VOLUNTEER_COLUMNS,
     MOVE_HELPREQUESTER_BACK_TO_RAWLIST_GROUP,
+    SET_REQUESTER_MULTIPLE_VALUES,
     UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD,
 } from '../utils/queries';
 
@@ -83,7 +85,7 @@ export const assignVolunteerToHelpRequester = async ({
 }: UpdateColumnValueForItemInBoardVariables): Promise<void> => {
     // TODO
 
-    return await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, {
+    await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, {
         helpRequesterId,
         boardId,
         columnId,
@@ -109,5 +111,19 @@ export const getVolunteersGroupedBy = async ({
         capacityColId1: capacityColId,
         capacityColId2: capacityColId,
         limit,
+    });
+};
+
+export const setRequesterMultipleValues = async ({
+    itemId,
+    boardId,
+    groupId,
+    columnValues,
+}: SetRequesterMultipleValuesVariables): Promise<void> => {
+    await makeGQLRequest(SET_REQUESTER_MULTIPLE_VALUES, {
+        itemId,
+        boardId,
+        groupId,
+        columnValues,
     });
 };

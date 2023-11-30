@@ -167,3 +167,14 @@ export const GET_VOLUNTEERS_GROUPED_BY_LANGUAGE = gql`
         }
     }
 `;
+
+export const SET_REQUESTER_MULTIPLE_VALUES = gql`
+    mutation SetRequesterMultipleValues($itemId: ID!, $boardId: ID!, $groupId: String!, $columnValues: JSON!) {
+        change_multiple_column_values(item_id: $itemId, board_id: $boardId, column_values: $columnValues) {
+            id
+        }
+        move_item_to_group(group_id: $groupId, item_id: $itemId) {
+            id
+        }
+    }
+`;
