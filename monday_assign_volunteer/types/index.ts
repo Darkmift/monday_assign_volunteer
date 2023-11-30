@@ -1,3 +1,24 @@
+export interface MondayEvent {
+    app: string;
+    type: string;
+    triggerTime: string;
+    subscriptionId: number;
+    userId: number;
+    originalTriggerUuid: string | null;
+    boardId: number;
+    pulseId: number;
+    sourceGroupId: string;
+    destGroupId: string;
+    destGroup: {
+        id: string;
+        title: string;
+        color: string;
+        is_top_group: boolean;
+    };
+    triggerUuid: string;
+    challenge?: string;
+}
+
 export interface IHelpRequesterApiResponse {
     items: IHelpRequester[];
 }
@@ -8,10 +29,10 @@ export interface IHelpRequester {
     group: IGroup;
     board: IBoard;
     column_values: IColumnValue[];
-    updated_at: Date;
+    updated_at: Date | string;
     level: string;
     message: string;
-    timestamp: Date;
+    timestamp: Date | string;
 }
 
 export interface IBoard {
@@ -23,7 +44,7 @@ export interface IItem {
     name: string;
     group: IGroup;
     column_values: IColumnValue[];
-    updated_at: Date;
+    updated_at: Date | string;
 }
 
 export interface IColumnValue {
@@ -34,11 +55,7 @@ export interface IColumnValue {
 export interface IColumn {
     id: string;
     title: string;
-}
-
-export interface IGroup {
-    id: string;
-    title: string;
+    type: string;
 }
 
 export interface LinkedPulses {
@@ -54,7 +71,7 @@ export interface IVolunteersAPIResponse {
     boards: IVolunteerBoard[];
     level: string;
     message: string;
-    timestamp: Date;
+    timestamp: Date | string;
 }
 
 export interface IVolunteerBoard {
@@ -64,20 +81,12 @@ export interface IVolunteerBoard {
     groups: IGroup[];
 }
 
-export interface IColumnValue {
-    id: string;
-    title: string;
-    type: string;
-}
-
 export interface IGroup {
     id: string;
     title: string;
-    items_page: IItemsPage;
-}
-
-export interface IItemsPage {
-    items: IItem[];
+    items_page?: {
+        items: IItem[];
+    };
 }
 
 export interface IItem {
@@ -92,3 +101,44 @@ export interface ICheckedValue {
 }
 
 export type LanguageMap = Record<string, { vColLangID: string; hColLangId: string; hCanSpeak?: boolean }>;
+
+export type UpdateColumnValueForItemInBoardVariables = {
+    helpRequesterId: number;
+    boardId: number;
+    columnId: string;
+    groupId: string;
+    value: string; // JSON value as a string
+};
+
+export type MoveHelpRequesterBackToRawListGroupVariables = {
+    helpRequesterId: number;
+    groupId: string;
+};
+
+export interface GetVolunteersGroupedByLanguageVariables {
+    boardId: number;
+    groupId: string;
+    langColId: string;
+    capacityColId: string;
+    limit?: number;
+}
+
+export interface IGroupedVolunteers {
+    boards: {
+        groups: {
+            items_page: {
+                items: {
+                    id: string;
+                    name: string;
+                }[];
+            };
+        }[];
+    }[];
+}
+
+export interface SetRequesterMultipleValuesVariables {
+    itemId: number;
+    boardId: number;
+    groupId: string;
+    columnValues: string; // JSON string
+}
