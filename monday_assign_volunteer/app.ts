@@ -9,6 +9,7 @@ import {
     getVolunteerBoardColumns,
     getVolunteersGroupedBy,
     moveHelpRequesterBackToRawList,
+    setRequesterMultipleValues,
 } from './graphql';
 import { IColumnValue, LinkedPulses, MondayEvent, UpdateColumnValueForItemInBoardVariables } from './types';
 import {
@@ -21,6 +22,7 @@ import {
 import mapLanguagesIds from './utils/mapLanguagesIds';
 import makeGQLRequest from './utils/graphQlRequestClient';
 import { UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD } from './utils/queries';
+import getTimeForNotifyVolunteer from './utils/getTimeForNotifyVolunteer';
 
 /**
  *
@@ -131,16 +133,33 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
         }
 
         try {
-            const optionsForUpdate: UpdateColumnValueForItemInBoardVariables = {
-                helpRequesterId: helpRequesterId + 5656,
+            // const optionsForUpdate: UpdateColumnValueForItemInBoardVariables = {
+            //     helpRequesterId: helpRequesterId,
+            //     boardId: helpRequesterBoardId,
+            //     columnId: COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER,
+            //     groupId: GROUP_AWAITING_CALL_FROM_VOLUNTEER,
+            //     value: JSON.stringify({
+            //         linkedPulseIds: [{ linkedPulseId: parseInt(availableVolunteer.id) }],
+            //     }),
+            // };
+            // await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, optionsForUpdate);
+
+            const nextHour = getTimeForNotifyVolunteer();
+            const dateString = nextHour.toISOString().split('T')[0]; // Format date to YYYY-MM-DD
+            const timeString = nextHour.toISOString().split('T')[1].split(':')[0] + ':00:00'; // Format time to HH:00:00
+
+            const updateValues = JSON.stringify({
+                connect_boards5: { linkedPulseIds: [{ linkedPulseId: parseInt(availableVolunteer.id) }] },
+                date42: { date: dateString, time: timeString },
+            });
+
+            const response = await setRequesterMultipleValues({
+                itemId: helpRequesterId,
                 boardId: helpRequesterBoardId,
-                columnId: COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER,
-                groupId: GROUP_AWAITING_CALL_FROM_VOLUNTEER + 'HH',
-                value: JSON.stringify({
-                    linkedPulseIds: [{ linkedPulseId: parseInt(availableVolunteer.id) }],
-                }),
-            };
-            await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, optionsForUpdate);
+                groupId: GROUP_AWAITING_CALL_FROM_VOLUNTEER,
+                columnValues: updateValues,
+            });
+            logger.log('🚀 ~ file: app.ts:162 ~ lambdaHandler ~ response:', response);
         } catch (error) {
             logger.error('🚀 ~ file: app.ts:146 ~ lambdaHandler ~ error:', error as Error);
             moveHelpRequesterBackToRawList(helpRequesterId);
