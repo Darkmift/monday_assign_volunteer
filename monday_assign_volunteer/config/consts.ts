@@ -1,5 +1,11 @@
 export const MONDAY_API_URL = 'https://api.monday.com/v2';
 export const MONDAY_API_KEY = process.env.MONDAY_API_KEY;
+
+/**
+ * group raw list to move requesters who were not assigned
+ */
+
+export const GROUP_RAW_LIST = 'topics';
 /**
  * This is the group id in the volunteer board that for volunteer available for assignment
  */
@@ -27,3 +33,7 @@ export const CAN_SPEAK_LANG_PREFIX = 'דובר ';
  * column id for capacity
  */
 export const COLUMN_CAPACITY = 'numbers';
+/**
+ * group id to assign the request helper to
+ */
+export const GROUP_AWAITING_CALL_FROM_VOLUNTEER = 'new_group73364';
