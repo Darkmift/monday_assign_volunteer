@@ -161,6 +161,13 @@ export const GET_VOLUNTEERS_GROUPED_BY_LANGUAGE = gql`
                     items {
                         id
                         name
+                        column_values(ids: "board_relation") {
+                            value
+                            column {
+                                id
+                                title
+                            }
+                        }
                     }
                 }
             }

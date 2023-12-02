@@ -11,7 +11,14 @@ import {
     moveHelpRequesterBackToRawList,
     setRequesterMultipleValues,
 } from './graphql';
-import { IColumnValue, LinkedPulses, MondayEvent, UpdateColumnValueForItemInBoardVariables } from './types';
+import {
+    IColumnValue,
+    IColumnValueVolunteer,
+    LinkedPulses,
+    MondayEvent,
+    UpdateColumnValueForItemInBoardVariables,
+    UpdateColumnValueVariables,
+} from './types';
 import {
     COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER,
     COLUMN_CAPACITY,
@@ -160,18 +167,24 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
                 columnValues: updateValues,
             });
 
-            // // we count the number of linked pulses
+            // we count the number of linked pulses
+
+            const value = availableVolunteer.column_values.find(
+                (c: IColumnValueVolunteer) => c.column.id === COLUMN_ASSIGN_VOLUNTEER_TO_REQUESTER,
+            );
+
+            const parsedValue = tryParse(value?.value) as LinkedPulses;
+
             // const assignedItemsCount = value.linkedPulseIds?.length || 0;
-            // logger.log('🚀 ~ file: app.ts:51 ~ lambdaHandler ~ pulseCount:', { value, pulseCount: assignedItemsCount });
 
-            // const variables: UpdateColumnValueVariables = {
-            //     volunteerId: pulseId,
-            //     boardId: boardId,
-            //     columnId: CAPACITY_COLUMN_ID,
-            //     value: assignedItemsCount.toString(),
-            // };
+            const variables: UpdateColumnValueVariables = {
+                volunteerId: parseInt(availableVolunteer.id),
+                boardId: VOLUNTEER_BOARD_ID,
+                columnId: COLUMN_CAPACITY,
+                value: parsedValue?.linkedPulseIds?.length?.toString(),
+            };
 
-            // await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, variables);
+            await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, variables);
 
             logger.log('🚀 ~ file: app.ts:162 ~ lambdaHandler ~ response:', response);
         } catch (error) {

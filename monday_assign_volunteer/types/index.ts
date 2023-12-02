@@ -123,6 +123,15 @@ export interface GetVolunteersGroupedByLanguageVariables {
     limit?: number;
 }
 
+export interface IColumnValueVolunteer {
+    // id: string;
+    value: null | string;
+    column: {
+        id: string;
+        title: string;
+    };
+}
+
 export interface IGroupedVolunteers {
     boards: {
         groups: {
@@ -130,6 +139,7 @@ export interface IGroupedVolunteers {
                 items: {
                     id: string;
                     name: string;
+                    column_values: IColumnValueVolunteer[];
                 }[];
             };
         }[];
@@ -142,3 +152,10 @@ export interface SetRequesterMultipleValuesVariables {
     groupId: string;
     columnValues: string; // JSON string
 }
+
+export type UpdateColumnValueVariables = {
+    volunteerId: number;
+    boardId: number;
+    columnId: string;
+    value: string;
+};
