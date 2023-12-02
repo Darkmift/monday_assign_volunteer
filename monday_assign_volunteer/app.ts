@@ -177,9 +177,10 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
 
             // const assignedItemsCount = value.linkedPulseIds?.length || 0;
 
-            const variables: UpdateColumnValueVariables = {
-                volunteerId: parseInt(availableVolunteer.id),
+            const variables: UpdateColumnValueForItemInBoardVariables = {
+                helpRequesterId: parseInt(availableVolunteer.id), //its volunterer mutation
                 boardId: VOLUNTEER_BOARD_ID,
+                groupId: GROUP_AWAITING_CALL_FROM_VOLUNTEER,
                 columnId: COLUMN_CAPACITY,
                 value: parsedValue?.linkedPulseIds?.length?.toString(),
             };
