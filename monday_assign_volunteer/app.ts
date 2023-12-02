@@ -159,6 +159,20 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
                 groupId: GROUP_AWAITING_CALL_FROM_VOLUNTEER,
                 columnValues: updateValues,
             });
+
+            // // we count the number of linked pulses
+            // const assignedItemsCount = value.linkedPulseIds?.length || 0;
+            // logger.log('🚀 ~ file: app.ts:51 ~ lambdaHandler ~ pulseCount:', { value, pulseCount: assignedItemsCount });
+
+            // const variables: UpdateColumnValueVariables = {
+            //     volunteerId: pulseId,
+            //     boardId: boardId,
+            //     columnId: CAPACITY_COLUMN_ID,
+            //     value: assignedItemsCount.toString(),
+            // };
+
+            // await makeGQLRequest(UPDATE_COLUMN_VALUE_FOR_ITEM_IN_BOARD, variables);
+
             logger.log('🚀 ~ file: app.ts:162 ~ lambdaHandler ~ response:', response);
         } catch (error) {
             logger.error('🚀 ~ file: app.ts:146 ~ lambdaHandler ~ error:', error as Error);
